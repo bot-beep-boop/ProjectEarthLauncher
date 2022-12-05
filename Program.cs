@@ -122,7 +122,7 @@ namespace ProjectEarthLauncher
                 if (Directory.Exists(path + "Api"))
                     FatalError("Couldn't delete Api", false);
                 if (Directory.Exists(path + "Cloudburst"))
-                    FatalError("Couldn't delete Api", false);
+                    FatalError("Couldn't delete Cloudburst", false);
 
                 Exception(e);
             }
