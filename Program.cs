@@ -8,6 +8,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -62,17 +63,68 @@ namespace ProjectEarthLauncher
         {
             while (true) {
                 Console.Clear();
-                Menu menu = new Menu(GeneralExtensions.ToBIG("ProjectEarth Launcher"), new string[] { "Install", "Launch", "Exit" });
-                int selected = menu.Show(Vector2Int.Zero);
-                if (selected == 0) {
+                Console.Write("(Up, Down, Enter)");
+                Menu menu = new Menu(GeneralExtensions.ToBIG("ProjectEarth Launcher"), new string[] { "Install", "Uninstall", "Launch", "Exit" });
+                int selected = menu.Show(Vector2Int.Up); //0,1
+                Console.Clear();
+                if (selected == 0)
                     Install();
-                }
-                else if (selected == 1) {
+                else if (selected == 1)
+                    Uninstall();
+                else if (selected == 2)
                     Launch();
-                }
-                else {
+                else
                     Environment.Exit(0);
-                }
+            }
+        }
+
+        private static void Uninstall()
+        {
+            BetterFolderBrowser browser = new BetterFolderBrowser()
+            {
+                Multiselect = false,
+                Title = "Select folder with api and cloudburst in it",
+            };
+            DialogResult res = browser.ShowDialog();
+            if (res != DialogResult.OK)
+                return;
+
+            string path = browser.SelectedFolder + "/";
+
+            bool apiDetected = Directory.Exists(path + "Api");
+            bool cloudburstDetected = Directory.Exists(path + "Cloudburst");
+
+            if (!apiDetected || !cloudburstDetected)
+                FatalError("Api or Cloudburst wasn't detecten inside selected folder");
+
+
+            Console.WriteLine($"Are you sure you want to uninstall from {path} (Y/N):");
+            char typed = Console.ReadKey().KeyChar;
+            Console.WriteLine(); // loks bad without newline
+            if (typed != 'y' && typed != 'Y')
+                return;
+
+            try {
+                if (File.Exists(path + "api.zip"))
+                    File.Delete(path + "api.zip");
+                if (Directory.Exists(path + "_api"))
+                    IOExtensions.Directory_Delete(path + "_api");
+                if (Directory.Exists(path + "Api"))
+                    IOExtensions.Directory_Delete(path + "Api");
+                if (Directory.Exists(path + "Cloudburst"))
+                    IOExtensions.Directory_Delete(path + "Cloudburst");
+
+                Console.WriteLine("Succesfully Uninstalled, Press any key to continue...");
+                Console.ReadKey(true);
+            }
+            catch (Exception e) {
+                FatalError("Failed to Uninstall:");
+                if (Directory.Exists(path + "Api"))
+                    FatalError("Couldn't delete Api", false);
+                if (Directory.Exists(path + "Cloudburst"))
+                    FatalError("Couldn't delete Api", false);
+
+                Exception(e);
             }
         }
 
@@ -81,8 +133,7 @@ namespace ProjectEarthLauncher
             BetterFolderBrowser browser = new BetterFolderBrowser()
             {
                 Multiselect = false,
-                RootFolder = Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
-                Title = "Select folder with api and cloudburst",
+                Title = "Select folder with api and cloudburst in it",
             };
             DialogResult res = browser.ShowDialog();
             if (res != DialogResult.OK)
@@ -91,6 +142,14 @@ namespace ProjectEarthLauncher
             string path = browser.SelectedFolder + "/";
 
             string apiExePath = path + "Api/bin/Release/net5.0/win-x64/ProjectEarthServerAPI.exe";
+            string cloudburstPath = path + "Cloudburst/";
+
+            if (!File.Exists(apiExePath)) {
+                FatalError("Api couldn't be found, make sure you have selected folder with Api and Cloudburst in it");
+            } else if (!File.Exists(cloudburstPath + "cloudburst.jar")) {
+                FatalError("Cloudburst couldn't be found, make sure you have selected folder with Api and Cloudburst in it");
+            }
+
             ProcessStartInfo processInfo = new ProcessStartInfo(apiExePath);
             processInfo.CreateNoWindow = false;
             processInfo.WindowStyle = ProcessWindowStyle.Normal;
@@ -100,7 +159,6 @@ namespace ProjectEarthLauncher
 
             Thread.Sleep(2000);
 
-            string cloudburstPath = path + "Cloudburst/";
             processInfo = new ProcessStartInfo("cmd.exe", "/c java -jar cloudburst.jar");
             processInfo.CreateNoWindow = false;
             processInfo.WindowStyle = ProcessWindowStyle.Normal;
@@ -111,6 +169,7 @@ namespace ProjectEarthLauncher
 
         private static void Install()
         {
+            // load urls
             string[] lines;
             if (File.Exists(Environment.CurrentDirectory + "/urls.txt"))
                 lines = File.ReadAllLines(Environment.CurrentDirectory + "/urls.txt");
@@ -123,6 +182,11 @@ namespace ProjectEarthLauncher
                 if (split.Length > 1)
                     urls.Add(split[0], split[1]); // name, url
             }
+
+            Console.WriteLine("Make sure you have installed:\n - .net sdk 5.0 (used for api compilation)\n - java 8 (if there are errors in the cloudburst part, " +
+                "it's probably because of wrong java version");
+            Console.WriteLine("If you have these installed press any key to continue...");
+            Console.ReadKey(true);
 
             BetterFolderBrowser browser = new BetterFolderBrowser()
             {
@@ -138,63 +202,171 @@ namespace ProjectEarthLauncher
 
             Console.Clear();
 
-            Console.Write("Server's IP: ");
-            string ip = Console.ReadLine();
+            try {
+                bool apiDetected = Directory.Exists(path + "Api");
+                bool cloudburstDetected = Directory.Exists(path + "Cloudburst");
 
-            // Api
-            Console.WriteLine("----------Api SetUp Start----------");
+                if (apiDetected && cloudburstDetected)
+                    FatalError("Already installed to this directory");
+                else if (cloudburstDetected)
+                    FatalError("Folder \"Api\" was detected, you need to delete this folder for the instalation to proceed");
+                else if (apiDetected)
+                    FatalError("Folder \"Cloudburst\" was detected, you need to delete this folder for the instalation to proceed");
 
-            DownloadFile(GetUrl("api", urls), path + "api.zip", "Api", true);
-            UnzipFile(path + "api.zip", path + "_api", true);
-            ExtractDir(path + "_api", path + "_api/ProjectEarthServerAPI", path + "Api");
+                // get ip
+                string ip = GetLocalIPAddress();
+                bool gotIp = ip != string.Empty;
+                if (ip != string.Empty) {
+                    Console.WriteLine($"Is this your ip (will be used for server) \"{ip}\" (Y/N):");
+                    char typed = Console.ReadKey().KeyChar;
+                    Console.WriteLine(); // loks bad without newline
+                    if (typed != 'y' && typed != 'Y')
+                        ip = string.Empty;
+                }
 
-            // ApiData
-            DownloadFile(GetUrl("data", urls), path + "Api/data/data.zip", "ApiData", true);
-            UnzipFile(path + "Api/data/data.zip", path + "Api/data/_data", true);
-            ExtractFiles(path + "Api/data/_data");
-            // Add buildplate
-            Directory.CreateDirectory(path + "Api/data/buildplates/");
-            File.WriteAllText(path + "Api/data/buildplates/" + buildplateFileName, buildplateFileText);
-            // Make sure new players have this buildplate
-            AddBuildplateToPlayer(path);
-            // Add IP and key
-            EditApiConfig(path, ip);
-            // Resourcepack
-            DownloadFile(GetUrl("resourcepack", urls), path + "Api/data/resourcepacks/vanilla.zip", "Resourcepack", true);
+                if (ip == string.Empty) {
+                    if (gotIp)
+                        Console.WriteLine("Please enter your ip manually");
+                    else
+                        Console.WriteLine("Couldn't get your ip, please enter it manually");
+                    getIp:
+                    Console.Write("Server's IP (192.168.x.x): ");
+                    ip = Console.ReadLine();
+                    if (!IPAddress.TryParse(ip, out _)) {
+                        Warning("Couldn't parse ip, are you sure it's correct ? (Y/N): ");
+                        char typed = Console.ReadKey().KeyChar;
+                        Console.WriteLine(); // loks bad without newline
+                        if (typed != 'y' && typed != 'Y')
+                            goto getIp;
+                    }
+                }
 
-            File.WriteAllText(path + "Api/build.bat", buildFileText);
-            Console.SetCursorPosition(0, Console.CursorTop + 1);
-            Console.WriteLine("Building Api...");
-            ExecuteCommand(buildFileText, path + "Api", "Build succeeded.");
-            Console.SetCursorPosition(0, Console.CursorTop - 1);
-            Console.WriteLine("Build Api       ");
+                // Api
+                Console.WriteLine("----------Api SetUp Start----------");
+                DownloadFile(GetUrl("api", urls), path + "api.zip", "Api", true);
+                UnzipFile(path + "api.zip", path + "_api", true);
+                ExtractDir(path + "_api", path + "_api/ProjectEarthServerAPI", path + "Api");
 
-            Console.WriteLine("----------Api SetUp Done----------");
-            Console.WriteLine("----------Cloudburst SetUp Start----------");
+                // ApiData
+                DownloadFile(GetUrl("data", urls), path + "Api/data/data.zip", "ApiData", true);
+                UnzipFile(path + "Api/data/data.zip", path + "Api/data/_data", true);
+                ExtractFiles(path + "Api/data/_data");
+                // Add buildplate
+                Directory.CreateDirectory(path + "Api/data/buildplates/");
+                File.WriteAllText(path + "Api/data/buildplates/" + buildplateFileName, buildplateFileText);
+                // Make sure new players have this buildplate
+                AddBuildplateToPlayer(path);
+                // Add IP and key
+                EditApiConfig(path, ip);
+                // Resourcepack
+                DownloadFile(GetUrl("resourcepack", urls), path + "Api/data/resourcepacks/vanilla.zip", "Resourcepack", true);
 
-            Directory.CreateDirectory(path + "Cloudburst");
-            DownloadFile(GetUrl("cloudburst", urls), path + "Cloudburst/cloudburst.jar", "Cloudburst", true);
-            DownloadFile(GetUrl("_cloudburst", urls), path + "Cloudburst/_cloudburst.jar", "_Cloudburst", true);
-            RunCloudburstSetup(path);
-            // plugins
-            DownloadFile(GetUrl("genoaplugin", urls), path + "Cloudburst/plugins/GenoaPlugin.jar", "GenoaPlugin", true);
-            DownloadFile(GetUrl("genoaallocatorplugin", urls), path + "Cloudburst/plugins/ZGenoaAllocatorPlugin.jar", "GenoaAllocatorPlugin", true);
-            Directory.CreateDirectory(path + "Cloudburst/plugins/GenoaAllocatorPlugin");
-            File.WriteAllText(path + "Cloudburst/plugins/GenoaAllocatorPlugin/key.txt", 
-                "/g1xCS33QYGC+F2s016WXaQWT8ICnzJvdqcVltNtWljrkCyjd5Ut4tvy2d/IgNga0uniZxv/t0hELdZmvx+cdA==");
-            Console.WriteLine("Created key.txt");
-            File.WriteAllText(path + "Cloudburst/plugins/GenoaAllocatorPlugin/ip.txt",
-                ip);
-            Console.WriteLine("Created ip.txt");
-            EditCloudburstYml(path, ip);
-            EditCloudburstServerProperties(path, ip);
+                File.WriteAllText(path + "Api/build.bat", buildFileText);
+                Console.SetCursorPosition(0, Console.CursorTop + 1);
+                Console.WriteLine("Building Api...");
+                ExecuteCommand(buildFileText, path + "Api", "Build succeeded.");
+                Console.SetCursorPosition(0, Console.CursorTop - 1);
+                Console.WriteLine("Build Api       ");
 
-            File.WriteAllText(path + "Cloudburst/Run.bat", "java -jar cloudburst.jar");
-            Console.WriteLine("Created Run.bat");
+                Console.WriteLine("----------Api SetUp Done----------");
+                Console.WriteLine("----------Cloudburst SetUp Start----------");
+
+                Directory.CreateDirectory(path + "Cloudburst");
+                DownloadFile(GetUrl("cloudburst", urls), path + "Cloudburst/cloudburst.jar", "Cloudburst", true);
+                DownloadFile(GetUrl("_cloudburst", urls), path + "Cloudburst/_cloudburst.jar", "_Cloudburst", true);
+                RunCloudburstSetup(path);
+                // plugins
+                DownloadFile(GetUrl("genoaplugin", urls), path + "Cloudburst/plugins/GenoaPlugin.jar", "GenoaPlugin", true);
+                DownloadFile(GetUrl("genoaallocatorplugin", urls), path + "Cloudburst/plugins/ZGenoaAllocatorPlugin.jar", "GenoaAllocatorPlugin", true);
+                Directory.CreateDirectory(path + "Cloudburst/plugins/GenoaAllocatorPlugin");
+                File.WriteAllText(path + "Cloudburst/plugins/GenoaAllocatorPlugin/key.txt",
+                    "/g1xCS33QYGC+F2s016WXaQWT8ICnzJvdqcVltNtWljrkCyjd5Ut4tvy2d/IgNga0uniZxv/t0hELdZmvx+cdA==");
+                Console.WriteLine("Created key.txt");
+                File.WriteAllText(path + "Cloudburst/plugins/GenoaAllocatorPlugin/ip.txt",
+                    ip);
+                Console.WriteLine("Created ip.txt");
+                EditCloudburstYml(path, ip);
+                EditCloudburstServerProperties(path, ip);
+
+                File.WriteAllText(path + "Cloudburst/Run.bat", "java -jar cloudburst.jar");
+                Console.WriteLine("Created Run.bat");
+            } catch (Exception e) {
+                if(!CleanFailedInstall(path, out Exception cleanEx, out List<string> failedToDelete)) {
+                    if (failedToDelete.Count > 0) {
+                        Console.WriteLine("Failed to delete:");
+                        for (int i = 0; i < failedToDelete.Count; i++)
+                            Console.WriteLine($" -{failedToDelete[i]}");
+
+                        Console.WriteLine("Please delete these file(s)/folder(s) before installing again to this directory");
+                    }
+                    Console.WriteLine("Installation Clean(Deletion) Exception:");
+                    Exception(cleanEx, false);
+
+                    Console.WriteLine("Installation Exception:");
+                } else
+                    Console.WriteLine("Failed to install, already created files were deleted");
+
+                Exception(e);
+            }
 
             Console.WriteLine("----------Cloudburst SetUp Done----------");
             Console.WriteLine("Press any key to continue...");
             Console.ReadKey(true);
+        }
+
+        private static string GetLocalIPAddress()
+        {
+            string localIP = string.Empty;
+            try {
+                using (Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, 0)) {
+                    socket.Connect("8.8.8.8", 65530);
+                    IPEndPoint endPoint = socket.LocalEndPoint as IPEndPoint;
+                    localIP = endPoint.Address.ToString();
+                }
+            } catch { }
+
+            if (localIP != string.Empty)
+                return localIP;
+
+            try {
+                localIP = Dns.GetHostEntry(Dns.GetHostName()).AddressList.First(x => x.AddressFamily == AddressFamily.InterNetwork).ToString();
+            } catch { }
+
+            return localIP;
+
+        }
+
+        private static bool CleanFailedInstall(string installDir, out Exception e, out List<string> failedToDelete)
+        { // api.zip, _api/, Api/, Cloudburst/
+            e = null;
+            failedToDelete = new List<string>();
+            try {
+                if (File.Exists(installDir + "api.zip"))
+                    File.Delete(installDir + "api.zip");
+                if (Directory.Exists(installDir + "_api"))
+                    IOExtensions.Directory_Delete(installDir + "_api"); // deletes directory with files in it
+                if (Directory.Exists(installDir + "Api"))
+                    IOExtensions.Directory_Delete(installDir + "Api");
+                if (Directory.Exists(installDir + "Cloudburst"))
+                    IOExtensions.Directory_Delete(installDir + "Cloudburst");
+
+                return true;
+            }
+            catch (Exception _e) {
+
+                if (File.Exists(installDir + "api.zip"))
+                    failedToDelete.Add(installDir + "api.zip");
+                if (Directory.Exists(installDir + "_api"))
+                    failedToDelete.Add(installDir + "_api");
+                if (Directory.Exists(installDir + "Api"))
+                    failedToDelete.Add(installDir + "Api");
+                if (Directory.Exists(installDir + "Cloudburst"))
+                    failedToDelete.Add(installDir + "Cloudburst");
+
+                e = _e;
+
+                return false;
+            }
         }
 
         private static void EditApiConfig(string installDir, string ip)
@@ -209,7 +381,7 @@ namespace ProjectEarthLauncher
             Console.WriteLine("Edited ApiConfig.json");
         }
 
-        private static void EditCloudburstYml(string installDir, string ip) // 5
+        private static void EditCloudburstYml(string installDir, string ip)
         {
             List<string> text = File.ReadAllLines(installDir + "Cloudburst/cloudburst.yml").ToList();
             text[5] = $"  earth-api: \"{ip}/1/api\"";
@@ -220,7 +392,7 @@ namespace ProjectEarthLauncher
             Console.WriteLine("Edited Cloudburst.yml");
         }
 
-        private static void EditCloudburstServerProperties(string installDir, string ip) // 5
+        private static void EditCloudburstServerProperties(string installDir, string ip)
         {
             List<string> text = File.ReadAllLines(installDir + "Cloudburst/server.properties").ToList();
             text[2] = $"server-ip={ip}";
@@ -329,14 +501,30 @@ namespace ProjectEarthLauncher
             Console.WriteLine($"Unzipped {Path.GetFileName(fromPath)}       ");
         }
 
-        private static void FatalError(string message)
+        private static void Exception(Exception e, bool exit = true)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"An exception was thrown:\n{e.Message}");
+            Console.ResetColor();
+            Console.WriteLine($"Type:\n{e.GetType()}");
+            Console.WriteLine($"Stack trace:\n{e.StackTrace}");
+            if (exit) {
+                Console.Write("Press any key to exit...");
+                Console.ReadKey(true);
+                Environment.Exit(2);
+            }
+        }
+
+        private static void FatalError(string message, bool exit = true)
         {
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine($"Encountered an error: {message}");
             Console.ResetColor();
-            Console.Write("Press any key to exit...");
-            Console.ReadKey(true);
-            Environment.Exit(2);
+            if (exit) {
+                Console.Write("Press any key to exit...");
+                Console.ReadKey(true);
+                Environment.Exit(2);
+            }
         }
 
         private static void Warning(string message)
@@ -380,8 +568,13 @@ namespace ProjectEarthLauncher
             bool cancelled = false;
             bool printing = false;
 
+            Console.WriteLine($"Starting download for: {dispName}...");
+
             long totalSize = GetFileSize(url);
             double lastReceived = 0d;
+
+            Console.SetCursorPosition(0, line);
+            Console.WriteLine($"Starting download for: {dispName} 0/{(totalSize < 0 ? "?" : totalSize.ToString())}");
 
             using (WebClient wc = new WebClient()) {
                 wc.DownloadProgressChanged += (object sender, DownloadProgressChangedEventArgs e) =>
