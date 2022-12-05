@@ -144,6 +144,14 @@ namespace ProjectEarthLauncher
             string apiExePath = path + "Api/bin/Release/net5.0/win-x64/ProjectEarthServerAPI.exe";
             string cloudburstPath = path + "Cloudburst/";
 
+            // Check upper level, users always select Api/ for some reason
+            bool upper = !File.Exists(apiExePath)
+                && File.Exists(Directory.GetParent(browser.SelectedFolder).FullName + "/Api/bin/Release/net5.0/win-x64/ProjectEarthServerAPI.exe");
+            if (upper) {
+                apiExePath = Directory.GetParent(browser.SelectedFolder).FullName + "/Api/bin/Release/net5.0/win-x64/ProjectEarthServerAPI.exe";
+                cloudburstPath = Directory.GetParent(browser.SelectedFolder).FullName + "/Cloudburst/";
+            }
+
             if (!File.Exists(apiExePath)) {
                 FatalError("Api couldn't be found, make sure you have selected folder with Api and Cloudburst in it");
             } else if (!File.Exists(cloudburstPath + "cloudburst.jar")) {
@@ -154,7 +162,7 @@ namespace ProjectEarthLauncher
             processInfo.CreateNoWindow = false;
             processInfo.WindowStyle = ProcessWindowStyle.Normal;
             processInfo.UseShellExecute = true;
-            processInfo.WorkingDirectory = path + "Api";
+            processInfo.WorkingDirectory = upper ? Directory.GetParent(browser.SelectedFolder).FullName + "/Api" : path + "Api";
             Process.Start(processInfo);
 
             Thread.Sleep(2000);
