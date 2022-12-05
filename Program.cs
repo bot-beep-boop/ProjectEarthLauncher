@@ -95,7 +95,7 @@ namespace ProjectEarthLauncher
             processInfo.CreateNoWindow = false;
             processInfo.WindowStyle = ProcessWindowStyle.Normal;
             processInfo.UseShellExecute = true;
-            processInfo.WorkingDirectory = Path.GetDirectoryName(apiExePath);
+            processInfo.WorkingDirectory = path + "Api";
             Process.Start(processInfo);
 
             Thread.Sleep(2000);
@@ -168,10 +168,6 @@ namespace ProjectEarthLauncher
             ExecuteCommand(buildFileText, path + "Api", "Build succeeded.");
             Console.SetCursorPosition(0, Console.CursorTop - 1);
             Console.WriteLine("Build Api       ");
-
-            IOExtensions.Directory_Delete(path + "Api/bin/Release/net5.0/win-x64/data");
-            Util.CopyDirectory(path + "Api/data", path + "Api/bin/Release/net5.0/win-x64/data", true);
-            Console.WriteLine("Copyed data");
 
             Console.WriteLine("----------Api SetUp Done----------");
             Console.WriteLine("----------Cloudburst SetUp Start----------");
