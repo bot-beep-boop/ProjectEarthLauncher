@@ -274,6 +274,9 @@ namespace ProjectEarthLauncher
                 Console.WriteLine("Building Api...");
                 ExecuteCommand(buildFileText, path + "Api", "Build succeeded.");
                 Console.SetCursorPosition(0, Console.CursorTop - 1);
+                if (!File.Exists(path + "Api/bin/Release/net5.0/win-x64/ProjectEarthServerAPI.exe"))
+                    FatalError("Failed to build, or you have wrong version of .net sdk installed");
+
                 Console.WriteLine("Build Api       ");
 
                 Console.WriteLine("----------Api SetUp Done----------");
