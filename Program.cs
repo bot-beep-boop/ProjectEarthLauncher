@@ -65,7 +65,7 @@ namespace ProjectEarthLauncher
                 Console.Clear();
                 Console.Write("(Up, Down, Enter)");
                 Menu menu = new Menu(GeneralExtensions.ToBIG("ProjectEarth Launcher"), new string[] { "Install", "Uninstall", "Launch", "Exit" });
-                int selected = menu.Show(Vector2Int.Up); //0,1
+                int selected = menu.Show(Vector2Int.Up); //x 0,y 1
                 Console.Clear();
                 if (selected == 0)
                     Install();
@@ -100,7 +100,7 @@ namespace ProjectEarthLauncher
 
             Console.WriteLine($"Are you sure you want to uninstall from {path} (Y/N):");
             char typed = Console.ReadKey().KeyChar;
-            Console.WriteLine(); // loks bad without newline
+            Console.WriteLine(); // looks bad without newline
             if (typed != 'y' && typed != 'Y')
                 return;
 
@@ -148,8 +148,9 @@ namespace ProjectEarthLauncher
             bool upper = !File.Exists(apiExePath)
                 && File.Exists(Directory.GetParent(browser.SelectedFolder).FullName + "/Api/bin/Release/net5.0/win-x64/ProjectEarthServerAPI.exe");
             if (upper) {
-                apiExePath = Directory.GetParent(browser.SelectedFolder).FullName + "/Api/bin/Release/net5.0/win-x64/ProjectEarthServerAPI.exe";
-                cloudburstPath = Directory.GetParent(browser.SelectedFolder).FullName + "/Cloudburst/";
+                path = Directory.GetParent(browser.SelectedFolder).FullName + "/";
+                apiExePath = path + "Api/bin/Release/net5.0/win-x64/ProjectEarthServerAPI.exe";
+                cloudburstPath = path + "Cloudburst/";
             }
 
             if (!File.Exists(apiExePath)) {
@@ -158,11 +159,50 @@ namespace ProjectEarthLauncher
                 FatalError("Cloudburst couldn't be found, make sure you have selected folder with Api and Cloudburst in it");
             }
 
+            string ipInfoPath = path + "Api/ipInfo.txt";
+            if (!File.Exists(ipInfoPath))
+                File.WriteAllText(ipInfoPath, $"{true}\n{GetLocalIPAddress()}");
+            string[] ipInfo = File.ReadAllLines(ipInfoPath);
+
+            bool isIpStatic = true;
+            string lastIp = "";
+            try {
+                isIpStatic = bool.Parse(ipInfo[0]);
+                lastIp = ipInfo[1];
+            } catch (Exception e) {
+                Console.WriteLine("Failed to load ipInfo");
+                Exception(e);
+            }
+
+            if (!isIpStatic && lastIp != GetLocalIPAddress()) { // update ip
+                string ip = GetLocalIPAddress();
+                // api config
+                List<string> text = File.ReadAllLines(path + "Api/data/config/apiconfig.json").ToList();
+                text[1] = $"	\"baseServerIP\": \"http://{ip}\",";
+                text[20] = $"		\"{ip}\":\"/g1xCS33QYGC+F2s016WXaQWT8ICnzJvdqcVltNtWljrkCyjd5Ut4tvy2d/IgNga0uniZxv/t0hELdZmvx+cdA==\"";
+                File.WriteAllLines(path + "Api/data/config/apiconfig.json", text.ToArray());
+                // ip.txt
+                File.WriteAllText(path + "Cloudburst/plugins/GenoaAllocatorPlugin/ip.txt",
+                    ip);
+                // cloudburst.yml
+                text = File.ReadAllLines(path + "Cloudburst/cloudburst.yml").ToList();
+                text[5] = $"  earth-api: \"{ip}/1/api\"";
+                File.WriteAllLines(path + "Cloudburst/cloudburst.yml", text.ToArray());
+                // server.properties
+                text = File.ReadAllLines(path + "Cloudburst/server.properties").ToList();
+                text[2] = $"server-ip={ip}";
+                File.WriteAllLines(path + "Cloudburst/server.properties", text.ToArray());
+
+                File.WriteAllText(ipInfoPath, $"{isIpStatic}\n{ip}");
+
+                Console.WriteLine($"IP change detected, updated ip to: {ip}");
+            }
+
             ProcessStartInfo processInfo = new ProcessStartInfo(apiExePath);
             processInfo.CreateNoWindow = false;
             processInfo.WindowStyle = ProcessWindowStyle.Normal;
             processInfo.UseShellExecute = true;
-            processInfo.WorkingDirectory = upper ? Directory.GetParent(browser.SelectedFolder).FullName + "/Api" : path + "Api";
+            processInfo.WorkingDirectory = path + "Api";
             Process.Start(processInfo);
 
             Thread.Sleep(2000);
@@ -173,6 +213,9 @@ namespace ProjectEarthLauncher
             processInfo.UseShellExecute = true;
             processInfo.WorkingDirectory = Path.GetDirectoryName(cloudburstPath);
             Process.Start(processInfo);
+
+            Console.WriteLine("Launched, press any key to continue...");
+            Console.ReadKey(true);
         }
 
         private static void Install()
@@ -191,7 +234,7 @@ namespace ProjectEarthLauncher
                     urls.Add(split[0], split[1]); // name, url
             }
 
-            Console.WriteLine("Make sure you have installed:\n - .net sdk 5.0 (used for api compilation)\n - java 8 (if there are errors in the cloudburst part, " +
+            Console.WriteLine("Make sure you have installed:\n - .net sdk 5.0, make sure you have this version! (used for api compilation)\n - java 8 (if there are errors in the cloudburst part, " +
                 "it's probably because of wrong java version");
             Console.WriteLine("If you have these installed press any key to continue...");
             Console.ReadKey(true);
@@ -224,15 +267,24 @@ namespace ProjectEarthLauncher
                 // get ip
                 string ip = GetLocalIPAddress();
                 bool gotIp = ip != string.Empty;
-                if (ip != string.Empty) {
+
+                Console.WriteLine($"Is your ip static (Y/N):");
+                char typedChar = Console.ReadKey().KeyChar;
+                Console.WriteLine(); // looks bad without newline
+
+                bool isIpStatic = false;
+                if (typedChar == 'y' || typedChar == 'Y')
+                    isIpStatic = true;
+
+                if (ip != string.Empty && isIpStatic) {
                     Console.WriteLine($"Is this your ip (will be used for server) \"{ip}\" (Y/N):");
                     char typed = Console.ReadKey().KeyChar;
-                    Console.WriteLine(); // loks bad without newline
+                    Console.WriteLine(); // looks bad without newline
                     if (typed != 'y' && typed != 'Y')
                         ip = string.Empty;
                 }
 
-                if (ip == string.Empty) {
+                if (ip == string.Empty && isIpStatic) {
                     if (gotIp)
                         Console.WriteLine("Please enter your ip manually");
                     else
@@ -243,7 +295,7 @@ namespace ProjectEarthLauncher
                     if (!IPAddress.TryParse(ip, out _)) {
                         Warning("Couldn't parse ip, are you sure it's correct ? (Y/N): ");
                         char typed = Console.ReadKey().KeyChar;
-                        Console.WriteLine(); // loks bad without newline
+                        Console.WriteLine(); // looks bad without newline
                         if (typed != 'y' && typed != 'Y')
                             goto getIp;
                     }
@@ -278,6 +330,8 @@ namespace ProjectEarthLauncher
                     FatalError("Failed to build, or you have wrong version of .net sdk installed");
 
                 Console.WriteLine("Build Api       ");
+
+                File.WriteAllText(path + "Api/ipInfo.txt", $"{isIpStatic}\n{ip}");
 
                 Console.WriteLine("----------Api SetUp Done----------");
                 Console.WriteLine("----------Cloudburst SetUp Start----------");
