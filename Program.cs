@@ -356,7 +356,11 @@ namespace ProjectEarthLauncher
                 File.WriteAllText(path + "Cloudburst/Run.bat", "java -jar cloudburst.jar");
                 Console.WriteLine("Created Run.bat");
             } catch (Exception e) {
-                if(!CleanFailedInstall(path, out Exception cleanEx, out List<string> failedToDelete)) {
+                Exception(e, false);
+                Console.WriteLine("Press any key to delete files...");
+                Console.ReadKey(true);
+
+                if (!CleanFailedInstall(path, out Exception cleanEx, out List<string> failedToDelete)) {
                     if (failedToDelete.Count > 0) {
                         Console.WriteLine("Failed to delete:");
                         for (int i = 0; i < failedToDelete.Count; i++)
@@ -368,10 +372,9 @@ namespace ProjectEarthLauncher
                     Exception(cleanEx, false);
 
                     Console.WriteLine("Installation Exception:");
-                } else
+                }
+                else
                     Console.WriteLine("Failed to install, already created files were deleted");
-
-                Exception(e);
             }
 
             Console.WriteLine("----------Cloudburst SetUp Done----------");
@@ -498,6 +501,8 @@ namespace ProjectEarthLauncher
             process.Close();
 
             Console.SetCursorPosition(0, Console.CursorTop - 1);
+            if (!Directory.Exists(installDir + "Cloudburst/plugins") || !File.Exists(installDir + "Cloudburst/cloudburst.yml"))
+                FatalError("Failed to generate cloudburst files, make sure you have right java version");
             Console.WriteLine("Generated Cloudburst file structure                     ");
         }
 
