@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using SystemPlus.Extensions;
 
 namespace ProjectEarthLauncher
 {
@@ -40,6 +41,15 @@ namespace ProjectEarthLauncher
                     CopyDirectory(subDir.FullName, newDestinationDir, true);
                 }
             }
+        }
+
+        public static void HandleBack()
+        {
+            ConsoleExtensions.WriteLine("Back", true);
+            getKey:
+            if (Console.ReadKey(true).Key != ConsoleKey.Enter)
+                goto getKey;
+            Console.Clear();
         }
     }
 }

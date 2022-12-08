@@ -64,7 +64,7 @@ namespace ProjectEarthLauncher
             while (true) {
                 Console.Clear();
                 Console.Write("(Up, Down, Enter)");
-                Menu menu = new Menu(GeneralExtensions.ToBIG("ProjectEarth Launcher"), new string[] { "Install", "Uninstall", "Launch", "Exit" });
+                Menu menu = new Menu(GeneralExtensions.ToBIG("ProjectEarth Launcher"), new string[] { "Install", "Uninstall", "Launch", "Help", "About", "Exit" });
                 int selected = menu.Show(Vector2Int.Up); //x 0,y 1
                 Console.Clear();
                 if (selected == 0)
@@ -73,8 +73,48 @@ namespace ProjectEarthLauncher
                     Uninstall();
                 else if (selected == 2)
                     Launch();
+                else if (selected == 3)
+                    Help();
+                else if (selected == 4)
+                    About();
                 else
                     Environment.Exit(0);
+            }
+        }
+
+        private static void About()
+        {
+            Console.WriteLine($"ProjectEarth Launcher - launcher for project earth (obviously) Version: {CONSTANTS.Version}");
+            Console.WriteLine("Made by: Mata V.");
+            Console.WriteLine("Contacts:");
+            Console.WriteLine(" -Discord: MatesCZ28#8618");
+            Console.WriteLine(" -Email: mata.v114@gmail.com");
+            Console.WriteLine("© CuRsEd GaMeS");
+            Util.HandleBack();
+        }
+
+        private static void Help()
+        {
+            start:
+            Console.Clear();
+            string[] options = new string[] 
+            { 
+                "How to setup the app>",
+                "Can't connect to server>", 
+                "Failed to build Api>", 
+                "Failed to generate cloudburst files>",
+                "Play buildplate in real life size>",
+                "Back" 
+            };
+            Menu menu = new Menu("Help".ToBIG(), options);
+            Console.Write("(Up, Down, Enter)");
+            int selected = menu.Show(Vector2Int.Up);
+            if (selected == options.Length - 1)
+                return;
+            else {
+                Console.Clear();
+                HelpUtil.ShowHelp(selected);
+                goto start;
             }
         }
 
