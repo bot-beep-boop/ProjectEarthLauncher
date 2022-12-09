@@ -9,7 +9,7 @@ namespace ProjectEarthLauncher
 {
     public static class HelpUtil
     {
-        private static Action[] helps = new Action[]// buildplate size
+        private static Action[] helps = new Action[]
         {
             ARSetup,
             ServerConnectError,
