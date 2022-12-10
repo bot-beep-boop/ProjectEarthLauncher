@@ -30,8 +30,7 @@ namespace ProjectEarthLauncher
             { "data", "https://github.com/jackcaver/ApiData/archive/refs/heads/master.zip" },
             { "resourcepack", "https://www.googleapis.com/drive/v3/files/1Kbx9DVKdBOr-VkmfCw_b1beEwyupeLak?alt=media&key=AIzaSyAA9ERw-9LZVEohRYtCWka_TQc6oXmvcVU&supportsAllDrives=True" },
             { "tileserver", "https://github.com/Project-Earth-Team/TileServer/archive/refs/heads/master.zip" },
-            { "cloudburst", "https://www.googleapis.com/drive/v3/files/1FhJumLXd7hEq7P7j5VpdsmJ5zZB2Yh3T?alt=media&key=AIzaSyAA9ERw-9LZVEohRYtCWka_TQc6oXmvcVU&supportsAllDrives=True" },
-            { "_cloudburst", "https://ci.rtm516.co.uk/job/ProjectEarth/job/Server/job/earth-inventory/lastSuccessfulBuild/artifact/target/Cloudburst.jar" },
+            { "cloudburst", "https://ci.rtm516.co.uk/job/ProjectEarth/job/Server/job/earth-inventory/lastSuccessfulBuild/artifact/target/Cloudburst.jar" },
             { "genoaplugin", "https://www.googleapis.com/drive/v3/files/1DIX9pT7B460iPd8tWysi4KQCxQqwQNL8?alt=media&key=AIzaSyAA9ERw-9LZVEohRYtCWka_TQc6oXmvcVU&supportsAllDrives=True" },
             { "genoaallocatorplugin", "https://www.googleapis.com/drive/v3/files/1m6PrdPTAl6k4k36pq44Lw-U-hDhixPwk?alt=media&key=AIzaSyAA9ERw-9LZVEohRYtCWka_TQc6oXmvcVU&supportsAllDrives=True" },
         };
@@ -554,7 +553,6 @@ namespace ProjectEarthLauncher
 
                 Directory.CreateDirectory(path + "Cloudburst");
                 DownloadFile(GetUrl("cloudburst", urls), path + "Cloudburst/cloudburst.jar", "Cloudburst", true);
-                DownloadFile(GetUrl("_cloudburst", urls), path + "Cloudburst/_cloudburst.jar", "_Cloudburst", true);
                 RunCloudburstSetup(path);
                 // plugins
                 DownloadFile(GetUrl("genoaplugin", urls), path + "Cloudburst/plugins/GenoaPlugin.jar", "GenoaPlugin", true);
@@ -728,7 +726,7 @@ namespace ProjectEarthLauncher
         private static void RunCloudburstSetup(string installDir)
         {
             Console.WriteLine("Running Cloudburst to generate file structure...");
-            ProcessStartInfo processInfo = new ProcessStartInfo("cmd.exe", "/c java -jar _cloudburst.jar");
+            ProcessStartInfo processInfo = new ProcessStartInfo("cmd.exe", "/c java -jar cloudburst.jar");
             processInfo.CreateNoWindow = true;
             processInfo.UseShellExecute = false;
             processInfo.RedirectStandardInput = true;
