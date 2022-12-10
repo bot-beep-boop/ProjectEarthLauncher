@@ -229,6 +229,9 @@ namespace ProjectEarthLauncher
             Console.WriteLine("Contacts:");
             Console.WriteLine(" -Discord: MatesCZ28#8618");
             Console.WriteLine(" -Email: mata.v114@gmail.com");
+            Console.WriteLine("Made possible by:");
+            Console.WriteLine(" -Project Earth Team - https://github.com/Project-Earth-Team");
+            Console.WriteLine(" -JackCaver (Api, ApiData) - https://github.com/jackcaver");
             Console.WriteLine("© CuRsEd GaMeS");
             Util.HandleBack();
         }
@@ -492,6 +495,24 @@ namespace ProjectEarthLauncher
                     }
                 }
 
+                int port = 80;
+                Console.WriteLine("Do you want to change port (default is 80) (Y/N): ");
+                typedChar = Console.ReadKey().KeyChar;
+                Console.WriteLine(); // looks bad without newline
+                if (typedChar == 'y' || typedChar == 'Y') {
+                    getPort:
+                    Console.Write("Server's port (0 - 65535): "); // ushort.MaxValue
+                    if (ushort.TryParse(Console.ReadLine(), out ushort _port))
+                        port = _port;
+                    else {
+                        Warning("Couldn't parse port, are you sure it's correct ? (Y/N): ");
+                        char typed = Console.ReadKey().KeyChar;
+                        Console.WriteLine(); // looks bad without newline
+                        if (typed != 'y' && typed != 'Y')
+                            goto getPort;
+                    }
+                }
+
                 // Api
                 Console.WriteLine("----------Api SetUp Start----------");
                 DownloadFile(GetUrl("api", urls), path + "api.zip", "Api", true);
@@ -508,9 +529,12 @@ namespace ProjectEarthLauncher
                 // Make sure new players have this buildplate
                 AddBuildplateToPlayer(path);
                 // Add IP and key
-                EditApiConfig(path, ip);
+                EditApiConfig(path, ip, port);
                 // Resourcepack
                 DownloadFile(GetUrl("resourcepack", urls), path + "Api/data/resourcepacks/vanilla.zip", "Resourcepack", true);
+
+                if (port != 80)
+                    EditAppSettings(path, port);
 
                 File.WriteAllText(path + "Api/build.bat", buildFileText);
                 Console.SetCursorPosition(0, Console.CursorTop + 1);
@@ -522,7 +546,7 @@ namespace ProjectEarthLauncher
 
                 Console.WriteLine("Build Api       ");
 
-                LauncherInfo info = new LauncherInfo(isIpStatic, ip, false);
+                LauncherInfo info = new LauncherInfo(isIpStatic, ip, false, port);
                 info.Save(path + "Api/PELauncher_config.txt");
 
                 Console.WriteLine("----------Api SetUp Done----------");
@@ -542,7 +566,7 @@ namespace ProjectEarthLauncher
                 File.WriteAllText(path + "Cloudburst/plugins/GenoaAllocatorPlugin/ip.txt",
                     ip);
                 Console.WriteLine("Created ip.txt");
-                EditCloudburstYml(path, ip);
+                EditCloudburstYml(path, ip, port);
                 EditCloudburstServerProperties(path, ip);
 
                 File.WriteAllText(path + "Cloudburst/Run.bat", "java -jar cloudburst.jar");
@@ -573,6 +597,14 @@ namespace ProjectEarthLauncher
             Console.WriteLine("Press any key to continue...");
             Console.ReadKey(true);
         }
+
+        private static void EditAppSettings(string installDir, int port)
+        {
+            string[] lines = File.ReadAllLines(installDir + "Api/appsettings.json");
+            lines[4] = $"        \"Url\": \"http://*:{port}\"";
+            File.WriteAllLines(installDir + "Api/appsettings.json", lines);
+            Console.WriteLine("Changed port in appsettings.json");
+         }
 
         private static Dictionary<string, string> LoadUrls()
         {
@@ -647,10 +679,10 @@ namespace ProjectEarthLauncher
             }
         }
 
-        private static void EditApiConfig(string installDir, string ip)
+        private static void EditApiConfig(string installDir, string ip, int port)
         {
             List<string> text = File.ReadAllLines(installDir + "Api/data/config/apiconfig.json").ToList();
-            text[1] = $"	\"baseServerIP\": \"http://{ip}\",";
+            text[1] = $"	\"baseServerIP\": \"http://{ip}:{port}\",";
             text[text.Count - 2] += ",";
             text.Insert(text.Count - 1, "\t\"multiplayerAuthKeys\": {\r\n" +
                 $"\t\t\"{ip}\":\"/g1xCS33QYGC+F2s016WXaQWT8ICnzJvdqcVltNtWljrkCyjd5Ut4tvy2d/IgNga0uniZxv/t0hELdZmvx+cdA==\"\r\n" +
@@ -659,10 +691,10 @@ namespace ProjectEarthLauncher
             Console.WriteLine("Edited ApiConfig.json");
         }
 
-        private static void EditCloudburstYml(string installDir, string ip)
+        private static void EditCloudburstYml(string installDir, string ip, int port)
         {
             List<string> text = File.ReadAllLines(installDir + "Cloudburst/cloudburst.yml").ToList();
-            text[5] = $"  earth-api: \"{ip}/1/api\"";
+            text[5] = $"  earth-api: \"{ip}:{port}/1/api\"";
             for (int i = 0; i < text.Count; i++)
                 if (text[i].Contains("generator: cloudburst:standard"))
                     text[i] = text[i].Replace("generator: cloudburst:standard", "generator: genoa:void");

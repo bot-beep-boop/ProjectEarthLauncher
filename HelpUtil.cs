@@ -66,7 +66,7 @@ namespace ProjectEarthLauncher
         private static void ServerConnectError()
         {
             Console.WriteLine("Can't connect to server▼");
-            Console.WriteLine(" -Make sure you have patched with correct ip (http://192.168.x.x)");
+            Console.WriteLine(" -Make sure you have patched with correct ip and port (http://192.168.x.x:x)");
             Console.WriteLine(" -Try to turn off firewall");
             Console.WriteLine(" -Set Wifi as private");
             Console.WriteLine(" -If you have antivirus set your wifi as private, my Wifi or similar");

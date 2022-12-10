@@ -11,18 +11,20 @@ namespace ProjectEarthLauncher
     {
         public static LauncherInfo Default
         {
-            get => new LauncherInfo(true, Program.GetLocalIPAddress(), false);
+            get => new LauncherInfo(true, Program.GetLocalIPAddress(), false, 80);
         }
 
         public bool IsStaticIP;
         public string LastIP;
         public bool IsTileServerInstalled;
+        public int Port;
 
-        public LauncherInfo(bool _staticIP, string _lastIP, bool _tileServerInstalled)
+        public LauncherInfo(bool _staticIP, string _lastIP, bool _tileServerInstalled, int _port)
         {
             IsStaticIP = _staticIP;
             LastIP = _lastIP;
             IsTileServerInstalled = _tileServerInstalled;
+            Port = _port;
         }
 
         public static LauncherInfo Load(string apiDir)
@@ -59,13 +61,16 @@ namespace ProjectEarthLauncher
                 bool isIpStatic = true;
                 string lastIp = "";
                 bool tileServerInstalled = false;
+                int port = 80;
                 try {
                     isIpStatic = bool.Parse(ipInfo[0]);
                     lastIp = ipInfo[1];
                     if (ipInfo.Length > 2)
                         tileServerInstalled = bool.Parse(ipInfo[2]);
+                    if (ipInfo.Length > 3)
+                        port = int.Parse(ipInfo[3]);
 
-                    return new LauncherInfo(isIpStatic, lastIp, tileServerInstalled);
+                    return new LauncherInfo(isIpStatic, lastIp, tileServerInstalled, port);
                 }
                 catch {
                     throw new Exception();
