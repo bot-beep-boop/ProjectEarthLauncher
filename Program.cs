@@ -86,6 +86,8 @@ namespace ProjectEarthLauncher
 
         private static void InstallTileServer()
         {
+            Console.WriteLine("Download and Install wsl update: https://wslstorestorage.blob.core.windows.net/wslblob/wsl_update_x64.msi");
+
             string _version = GetCommandVersion("docker", true);
             string dockerVersion = string.Empty;
             if (_version != null && _version != string.Empty)
@@ -102,16 +104,14 @@ namespace ProjectEarthLauncher
                     char typed = Console.ReadKey().KeyChar; Console.WriteLine();
                     if (typed != 'y' && typed != 'Y')
                         return;
-                } else {
-                    Console.WriteLine($"Docker detected ({dockerVersion})");
-                    Console.WriteLine("Press any key to continue...");
-                    Console.ReadKey(true);
                 }
-            } else {
-                Console.WriteLine($"Docker detected ({dockerVersion})");
-                Console.WriteLine("Press any key to continue...");
-                Console.ReadKey(true);
-            }
+            } 
+            Console.WriteLine($"Docker detected ({dockerVersion})");
+            Console.WriteLine("If you haven't done this before go to the config file at C:\\Users\\<username>\\AppData\\Roaming\\Docker\\settings.json, and set \"wslEngineEnabled\": true");
+            Console.WriteLine("After that Restart");
+            Console.WriteLine("Press any key to continue...");
+            Console.ReadKey(true);
+            
 
             BetterFolderBrowser browser = new BetterFolderBrowser()
             {
