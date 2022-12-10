@@ -94,6 +94,19 @@ namespace ProjectEarthLauncher
                 Console.WriteLine("Docker wasn't detected, you can download it here: https://docs.docker.com/get-docker/");
                 Console.WriteLine("After you install it, press any key to continue...");
                 Console.ReadKey(true);
+                _version = GetCommandVersion("docker", true);
+                if (_version != null && _version != string.Empty)
+                    dockerVersion = Encoding.UTF8.GetString(Encoding.Unicode.GetBytes(_version));
+                if (dockerVersion == string.Empty) {
+                    Console.WriteLine("Still couldn't detect docker, force install? (Y/N):");
+                    char typed = Console.ReadKey().KeyChar; Console.WriteLine();
+                    if (typed != 'y' && typed != 'Y')
+                        return;
+                } else {
+                    Console.WriteLine($"Docker detected ({dockerVersion})");
+                    Console.WriteLine("Press any key to continue...");
+                    Console.ReadKey(true);
+                }
             } else {
                 Console.WriteLine($"Docker detected ({dockerVersion})");
                 Console.WriteLine("Press any key to continue...");
@@ -151,7 +164,7 @@ namespace ProjectEarthLauncher
                 configAr[3] = $" 	\"tileServerUrl\": \"http://{info.LastIP}:8080\",";
                 File.WriteAllLines(path + "Api/data/config/apiconfig.json", configAr);
                 Console.WriteLine("Edited apiconfig.json");
-                File.WriteAllText(path + "TileServer/start.bat", $"docker run --rm -it -v {path}TileServer\\:/data -p 8080:8080 maptiler/tileserver-gl");
+                File.WriteAllText(path + "TileServer/start.bat", $"docker run --rm -it -v \"{path}TileServer\\:\"/data -p 8080:8080 maptiler/tileserver-gl");
                 Console.WriteLine("Created start.bat");
             } catch (Exception e) {
                 Exception(e);
